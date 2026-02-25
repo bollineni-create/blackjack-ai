@@ -127,7 +127,7 @@
       autoBtn.textContent = 'AUTO ●';
       autoBtn.style.color = '#00e87a';
       doScan();
-      autoInterval = setInterval(doScan, 4000);
+      autoInterval = setInterval(doScan, 2000);
     }
   });
 

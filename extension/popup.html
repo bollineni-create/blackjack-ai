@@ -9,80 +9,75 @@
     background: #0a0a0f;
     font-family: 'Courier New', monospace;
     color: #eeeeff;
+    margin: 0;
   }
-  h2 {
-    font-size: 14px;
-    letter-spacing: 3px;
-    color: #f5c842;
-    margin-bottom: 14px;
-  }
-  label {
-    font-size: 9px;
-    color: #55556a;
-    letter-spacing: 2px;
-    display: block;
-    margin-bottom: 6px;
-  }
+  h2 { font-size: 14px; letter-spacing: 3px; color: #f5c842; margin-bottom: 14px; }
+  label { font-size: 9px; color: #55556a; letter-spacing: 2px; display: block; margin-bottom: 6px; }
   input {
-    width: 100%;
-    background: #1a1a26;
-    border: 1px solid #2a2a45;
-    border-radius: 6px;
-    color: #eeeeff;
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-    padding: 8px 10px;
-    outline: none;
-    box-sizing: border-box;
+    width: 100%; background: #1a1a26; border: 1px solid #2a2a45; border-radius: 6px;
+    color: #eeeeff; font-family: 'Courier New', monospace; font-size: 11px;
+    padding: 8px 10px; outline: none; box-sizing: border-box;
   }
   input:focus { border-color: #f5c842; }
   button {
-    margin-top: 10px;
-    width: 100%;
-    background: #f5c842;
-    color: #000;
-    border: none;
-    border-radius: 6px;
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-    letter-spacing: 2px;
-    font-weight: bold;
-    padding: 10px;
-    cursor: pointer;
+    margin-top: 10px; width: 100%; background: #f5c842; color: #000;
+    border: none; border-radius: 6px; font-family: 'Courier New', monospace;
+    font-size: 12px; letter-spacing: 2px; font-weight: bold;
+    padding: 10px; cursor: pointer;
   }
   button:hover { opacity: 0.85; }
-  #status { font-size: 10px; color: #00e87a; margin-top: 8px; letter-spacing: 1px; min-height: 14px; }
-  .note { font-size: 9px; color: #3a3a55; margin-top: 10px; line-height: 1.6; letter-spacing: 1px; }
+  #status { font-size: 10px; margin-top: 8px; letter-spacing: 1px; min-height: 16px; padding: 4px 0; }
+  .note { font-size: 9px; color: #3a3a55; margin-top: 10px; line-height: 1.7; letter-spacing: 1px; }
   a { color: #f5c842; }
 </style>
 </head>
 <body>
-<h2>♠ BJ ADVISOR SETUP</h2>
+<h2>♠ BJ ADVISOR</h2>
 <label>ANTHROPIC API KEY</label>
-<input type="password" id="apiKey" placeholder="sk-ant-...">
+<input type="password" id="apiKey" placeholder="sk-ant-api03-...">
 <button id="saveBtn">SAVE KEY</button>
 <div id="status"></div>
 <div class="note">
-  Your key is stored locally only.<br>
-  Get one at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a><br><br>
-  On Bovada: the floating HUD will appear.<br>
-  Click AUTO to scan every 4 seconds.
+  Get a key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a><br>
+  Key stored locally in browser only.<br><br>
+  On Bovada live dealer: drag the HUD,<br>
+  click AUTO to scan every 2 seconds.
 </div>
 <script>
-  const input = document.getElementById('apiKey');
+  const input  = document.getElementById('apiKey');
   const status = document.getElementById('status');
 
-  chrome.storage.local.get('apiKey', ({ apiKey }) => {
-    if (apiKey) { input.value = apiKey; status.textContent = '✓ KEY SAVED'; }
+  // Load existing key on open
+  chrome.storage.local.get(['apiKey'], (result) => {
+    if (chrome.runtime.lastError) {
+      status.style.color = '#ff2d55';
+      status.textContent = 'Storage error: ' + chrome.runtime.lastError.message;
+      return;
+    }
+    if (result.apiKey) {
+      input.value = result.apiKey;
+      status.style.color = '#00e87a';
+      status.textContent = '✓ KEY LOADED';
+    }
   });
 
   document.getElementById('saveBtn').addEventListener('click', () => {
     const key = input.value.trim();
-    if (!key.startsWith('sk-')) {
-      status.textContent = '✗ INVALID KEY'; status.style.color = '#ff2d55'; return;
+    if (!key || key.length < 10) {
+      status.style.color = '#ff2d55';
+      status.textContent = '✗ KEY TOO SHORT';
+      return;
     }
+    status.style.color = '#f5c842';
+    status.textContent = 'SAVING...';
     chrome.storage.local.set({ apiKey: key }, () => {
-      status.textContent = '✓ SAVED'; status.style.color = '#00e87a';
+      if (chrome.runtime.lastError) {
+        status.style.color = '#ff2d55';
+        status.textContent = '✗ ' + chrome.runtime.lastError.message;
+      } else {
+        status.style.color = '#00e87a';
+        status.textContent = '✓ KEY SAVED — GO TO BOVADA';
+      }
     });
   });
 </script>
