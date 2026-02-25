@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Blackjack Advisor</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a0f;
+    font-family: 'Courier New', monospace;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 40px 20px;
+    color: #f0f0ff;
+  }
+  h1 { color: #ffd700; font-size: 28px; letter-spacing: 4px; margin-bottom: 4px; }
+  .sub { color: #44445a; font-size: 12px; margin-bottom: 36px; letter-spacing: 2px; }
+
+  .fields { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 12px; }
+
+  .row { display: flex; align-items: center; gap: 12px; }
+  .row label {
+    color: #44445a; font-size: 11px; font-weight: bold;
+    letter-spacing: 1px; width: 140px; text-align: right; flex-shrink: 0;
+  }
+  .row input {
+    background: #1c1c2e; border: 2px solid #2a2a45; border-radius: 6px;
+    color: #f0f0ff; font-family: 'Courier New', monospace;
+    font-size: 22px; font-weight: bold;
+    padding: 10px 14px; width: 100px; outline: none;
+    transition: border-color 0.15s;
+  }
+  .row input:focus { border-color: #ffd700; }
+
+  .divider { width: 100%; max-width: 480px; border: none; border-top: 1px solid #2a2a45; margin: 24px 0; }
+
+  .result-box {
+    width: 100%; max-width: 480px;
+    background: #13131e;
+    border: 3px solid #2a2a45;
+    border-radius: 12px;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 28px 20px 24px;
+    transition: border-color 0.2s;
+  }
+  .result-icon { font-size: 64px; line-height: 1; margin-bottom: 6px; }
+  .result-action { font-size: 44px; font-weight: bold; letter-spacing: 4px; }
+  .result-sub { font-size: 12px; margin-top: 10px; color: #44445a; text-align: center; letter-spacing: 1px; }
+
+  .section-label {
+    width: 100%; max-width: 480px;
+    font-size: 10px; color: #2a2a45; letter-spacing: 3px;
+    margin-bottom: 6px; margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<h1>BLACKJACK ADVISOR</h1>
+<div class="sub">ANSWER UPDATES AS YOU TYPE</div>
+
+<div class="fields">
+
+  <div class="section-label">— DEALER —</div>
+  <div class="row">
+    <label>DEALER CARD 1</label>
+    <input id="d1" placeholder="A" maxlength="2" autocomplete="off" spellcheck="false">
+  </div>
+  <div class="row">
+    <label>DEALER CARD 2</label>
+    <input id="d2" placeholder="K" maxlength="2" autocomplete="off" spellcheck="false">
+  </div>
+
+  <div class="section-label" style="margin-top:12px;">— YOU —</div>
+  <div class="row">
+    <label>YOUR CARD</label>
+    <input id="p1" placeholder="8" maxlength="2" autocomplete="off" spellcheck="false">
+  </div>
+
+  <div class="section-label" style="margin-top:12px;">— STAKES —</div>
+  <div class="row">
+    <label>BALANCE  $</label>
+    <input id="balance" placeholder="1000" maxlength="12" autocomplete="off">
+  </div>
+  <div class="row">
+    <label>BET  $</label>
+    <input id="bet" placeholder="100" maxlength="12" autocomplete="off">
+  </div>
+
+</div>
+
+<hr class="divider">
+
+<div class="result-box" id="resultBox">
+  <div class="result-icon" id="resultIcon">?</div>
+  <div class="result-action" id="resultAction" style="color:#44445a">WAITING</div>
+  <div class="result-sub" id="resultSub">Enter dealer cards + your card</div>
+</div>
+
+<script>
+const CARD_MAP = {
+  'A':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,
+  '10':10,'T':10,'J':10,'Q':10,'K':10
+};
+
+function parseCard(s) {
+  return CARD_MAP[s.trim().toUpperCase()] ?? null;
+}
+
+function bestTotal(cards) {
+  let t = cards.reduce((a,b)=>a+b, 0);
+  if (cards.includes(1) && t + 10 <= 21) t += 10;
+  return t;
+}
+
+function isSoft(cards) {
+  return cards.includes(1) && cards.reduce((a,b)=>a+b,0) + 10 <= 21;
+}
+
+function dealerIdx(d) {
+  d = Math.min(d, 10);
+  return {2:0,3:1,4:2,5:3,6:4,7:5,8:6,9:7,10:8,1:9}[d];
+}
+
+const HARD = {
+  4:'HHHHHHHHHH', 5:'HHHHHHHHHH', 6:'HHHHHHHHHH', 7:'HHHHHHHHHH',
+  8:'HHHHHHHHHH', 9:'HDDDDHHHHH', 10:'DDDDDDDDHH', 11:'DDDDDDDDDH',
+  12:'HHSSSHHHHH', 13:'SSSSSHHHHH', 14:'SSSSSHHHHH',
+  15:'SSSSSHHHRH', 16:'SSSSSHHRRH',
+  17:'SSSSSSSSSS', 18:'SSSSSSSSSS', 19:'SSSSSSSSSS',
+  20:'SSSSSSSSSS', 21:'SSSSSSSSSS'
+};
+const SOFT = {
+  2:'HHHDDHHHHH', 3:'HHHDDHHHHH', 4:'HHDDDHHHHH', 5:'HHDDDHHHHH',
+  6:'HDDDDHHHHH', 7:'SDDDDSSHHH', 8:'SSSSSSSSSS', 9:'SSSSSSSSSS'
+};
+const PAIRS = {
+  1:'PPPPPPPPPP', 2:'PPPPPPHHHH', 3:'PPPPPPHHHH', 4:'HHHPHHHHHH',
+  5:'DDDDDDDDHH', 6:'PPPPPHHHHH', 7:'PPPPPPHHHR', 8:'PPPPPPPPPP',
+  9:'PPPPPSPPSS', 10:'SSSSSSSSSS'
+};
+
+function getAction(playerCards, dealerUp) {
+  const di   = dealerIdx(dealerUp);
+  const soft = isSoft(playerCards);
+  const tot  = bestTotal(playerCards);
+
+  if (playerCards.length === 2 && playerCards[0] === playerCards[1]) {
+    const a = (PAIRS[playerCards[0]] || 'HHHHHHHHHH')[di];
+    if (a === 'P') return 'SPLIT';
+  }
+
+  if (soft && tot < 21) {
+    const other = Math.max(2, Math.min(9, tot - 11));
+    const a = (SOFT[other] || 'HHHHHHHHHH')[di];
+    if (a === 'D') return 'DOUBLE';
+    if (a === 'S') return 'STAND';
+    return 'HIT';
+  }
+
+  const t = Math.min(Math.max(tot, 4), 21);
+  const a = (HARD[t] || 'HHHHHHHHHH')[di];
+  if (a === 'D') return 'DOUBLE';
+  if (a === 'S') return 'STAND';
+  if (a === 'R') return 'SURRENDER';
+  return 'HIT';
+}
+
+const STYLES = {
+  HIT:       { color:'#00ff88', icon:'↑',  text:'HIT' },
+  STAND:     { color:'#ffd700', icon:'—',  text:'STAND' },
+  DOUBLE:    { color:'#00e5ff', icon:'✦',  text:'DOUBLE DOWN' },
+  SPLIT:     { color:'#c084fc', icon:'⟺', text:'SPLIT' },
+  SURRENDER: { color:'#ff3355', icon:'✕',  text:'SURRENDER' },
+};
+
+function update() {
+  const d1 = parseCard(document.getElementById('d1').value);
+  const d2 = parseCard(document.getElementById('d2').value);
+  const p1 = parseCard(document.getElementById('p1').value);
+  const balRaw = document.getElementById('balance').value;
+  const betRaw = document.getElementById('bet').value;
+
+  const box    = document.getElementById('resultBox');
+  const icon   = document.getElementById('resultIcon');
+  const action = document.getElementById('resultAction');
+  const sub    = document.getElementById('resultSub');
+
+  if (!d1 || !p1) {
+    box.style.borderColor = '#2a2a45';
+    icon.textContent = '?'; icon.style.color = '#44445a';
+    action.textContent = 'WAITING'; action.style.color = '#44445a';
+    sub.textContent = 'Enter dealer cards + your card';
+    return;
+  }
+
+  const playerCards = [p1];
+  const result = getAction(playerCards, d1);
+  const s = STYLES[result];
+  const tot  = bestTotal(playerCards);
+  const soft = isSoft(playerCards);
+
+  let subText = `Your card: ${soft?'Soft ':''}${tot}   Dealer: ${document.getElementById('d1').value.toUpperCase()}`;
+  if (d2) subText += ` + ${document.getElementById('d2').value.toUpperCase()}`;
+
+  const bal = parseFloat(balRaw.replace(/[$,]/g,''));
+  const bet = parseFloat(betRaw.replace(/[$,]/g,''));
+  if (!isNaN(bal)) subText += `   Balance: $${bal.toLocaleString()}`;
+  if (!isNaN(bet)) subText += `   Bet: $${bet.toLocaleString()}`;
+
+  box.style.borderColor = s.color;
+  icon.textContent = s.icon; icon.style.color = s.color;
+  action.textContent = s.text; action.style.color = s.color;
+  sub.textContent = subText; sub.style.color = s.color;
+}
+
+['d1','d2','p1','balance','bet'].forEach(id => {
+  document.getElementById(id).addEventListener('input', update);
+});
+</script>
+</body>
+</html>
