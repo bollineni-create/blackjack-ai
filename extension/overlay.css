@@ -1,0 +1,103 @@
+/* overlay.css — injected into bovada.lv */
+
+#bj-advisor-hud {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  z-index: 999999;
+  width: 220px;
+  background: #0a0a0f;
+  border: 2px solid #2a2a45;
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+  font-family: 'Courier New', monospace;
+  user-select: none;
+  overflow: hidden;
+  transition: box-shadow 0.3s;
+}
+
+#bj-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: #13131c;
+  cursor: grab;
+  border-bottom: 1px solid #2a2a45;
+}
+#bj-drag-handle:active { cursor: grabbing; }
+
+#bj-title {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #f5c842;
+  font-weight: bold;
+}
+
+#bj-controls {
+  display: flex;
+  gap: 4px;
+}
+
+#bj-controls button {
+  background: #1a1a26;
+  border: 1px solid #2a2a45;
+  border-radius: 4px;
+  color: #3a3a55;
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 3px 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+#bj-controls button:hover {
+  border-color: #f5c842;
+  color: #f5c842;
+}
+
+#bj-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 10px 12px;
+  gap: 4px;
+}
+
+#bj-action-icon {
+  font-size: 44px;
+  line-height: 1;
+  color: #3a3a55;
+  filter: drop-shadow(0 0 10px currentColor);
+  transition: color 0.2s;
+}
+
+#bj-action-text {
+  font-size: 26px;
+  font-weight: bold;
+  letter-spacing: 3px;
+  color: #3a3a55;
+  transition: color 0.2s;
+}
+
+#bj-cards-row {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #3a3a55;
+  text-align: center;
+  margin-top: 4px;
+}
+
+#bj-info-row {
+  font-size: 10px;
+  color: #3a3a55;
+  letter-spacing: 1px;
+}
+
+#bj-status {
+  font-size: 9px;
+  color: #2a2a45;
+  letter-spacing: 1px;
+  margin-top: 4px;
+  text-align: center;
+}
