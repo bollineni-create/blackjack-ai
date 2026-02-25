@@ -1,17 +1,11 @@
 #!/usr/bin/env python3
 """
-BLACKJACK ADVISOR — Simple Edition
+BLACKJACK ADVISOR — self-contained, no external imports
 4 inputs → 1 big answer
 """
 
 import tkinter as tk
-import sys, os
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from core.strategy import get_action, HandState, Action, best_total, has_soft_ace
-
-# ── Theme ──────────────────────────────────────────────────────────────────────
 BG     = '#0a0a0f'
 PANEL  = '#13131e'
 FIELD  = '#1c1c2e'
@@ -23,61 +17,82 @@ GREEN  = '#00ff88'
 RED    = '#ff3355'
 CYAN   = '#00e5ff'
 PURPLE = '#c084fc'
-ORANGE = '#ff9800'
 
-CARD_VALS = {
-    'A':1, '2':2, '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9,
-    '10':10, 'T':10, 'J':10, 'Q':10, 'K':10,
+CARD_MAP = {
+    'A':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,
+    '10':10,'T':10,'J':10,'Q':10,'K':10,
 }
 
-ACTION_STYLE = {
-    'HIT':        (GREEN,  '↑',  'HIT'),
-    'STAND':      (GOLD,   '—',  'STAND'),
-    'DOUBLE':     (CYAN,   '✦',  'DOUBLE DOWN'),
-    'SPLIT':      (PURPLE, '⟺', 'SPLIT'),
-    'SURRENDER':  (RED,    '✕',  'SURRENDER'),
+def parse_card(s):
+    return CARD_MAP.get(s.strip().upper())
+
+def best_total(cards):
+    t = sum(cards)
+    if 1 in cards and t + 10 <= 21:
+        t += 10
+    return t
+
+def is_soft(cards):
+    return 1 in cards and sum(cards) + 10 <= 21
+
+def dealer_idx(d):
+    return {2:0,3:1,4:2,5:3,6:4,7:5,8:6,9:7,10:8,1:9}[min(d,10)]
+
+# Basic Strategy tables (6-deck S17)
+# H=Hit  S=Stand  D=Double(else Hit)  P=Split  R=Surrender(else Hit)
+HARD = {
+    4:'HHHHHHHHHH', 5:'HHHHHHHHHH', 6:'HHHHHHHHHH', 7:'HHHHHHHHHH',
+    8:'HHHHHHHHHH', 9:'HDDDDHHHHH', 10:'DDDDDDDDHH', 11:'DDDDDDDDDH',
+    12:'HHSSSHHHHH', 13:'SSSSSHHHHH', 14:'SSSSSHHHHH',
+    15:'SSSSSHHHRH', 16:'SSSSSHHRRH',
+    17:'SSSSSSSSSS', 18:'SSSSSSSSSS', 19:'SSSSSSSSSS',
+    20:'SSSSSSSSSS', 21:'SSSSSSSSSS',
+}
+SOFT = {
+    2:'HHHDDHHHHH', 3:'HHHDDHHHHH', 4:'HHDDDHHHHH', 5:'HHDDDHHHHH',
+    6:'HDDDDHHHHH', 7:'SDDDDSSHHH', 8:'SSSSSSSSSS', 9:'SSSSSSSSSS',
+}
+PAIRS = {
+    1:'PPPPPPPPPP', 2:'PPPPPPHHHH', 3:'PPPPPPHHHH', 4:'HHHPHHHHHH',
+    5:'DDDDDDDDHH', 6:'PPPPPHHHHH', 7:'PPPPPPHHHR', 8:'PPPPPPPPPP',
+    9:'PPPPPSPPSS', 10:'SSSSSSSSSS',
 }
 
-def parse_card(raw: str):
-    v = raw.strip().upper()
-    return CARD_VALS.get(v)
+def get_action(c1, c2, dealer):
+    di   = dealer_idx(dealer)
+    cards = [c1, c2]
+    soft  = is_soft(cards)
+    tot   = best_total(cards)
 
-def get_advice(dealer1_raw, dealer2_raw, player_raw):
-    """
-    dealer1 = dealer upcard (visible)
-    dealer2 = dealer second card (if known)
-    player  = player cards, space-separated e.g. "A 7" or "8 8"
-    Returns (action_str, sub_text, can_split, is_soft, total)
-    """
-    d1 = parse_card(dealer1_raw)
-    if d1 is None:
-        return None, 'Enter a valid dealer card (A 2–9 T/J/Q/K)', False, False, 0
+    # Pair split?
+    if c1 == c2:
+        a = PAIRS.get(c1, 'HHHHHHHHHH')[di]
+        if a == 'P':
+            return 'SPLIT'
 
-    # Player cards
-    player_tokens = player_raw.strip().upper().split()
-    player_cards  = [parse_card(t) for t in player_tokens]
-    player_cards  = [c for c in player_cards if c is not None]
+    # Soft hand
+    if soft and tot < 21:
+        other = max(2, min(9, tot - 11))
+        a = SOFT.get(other, 'HHHHHHHHHH')[di]
+        if a == 'D': return 'DOUBLE'
+        if a == 'S': return 'STAND'
+        return 'HIT'
 
-    if not player_cards:
-        return None, 'Enter your card(s)', False, False, 0
+    # Hard hand
+    tot = min(max(tot, 4), 21)
+    a = HARD.get(tot, 'HHHHHHHHHH')[di]
+    if a == 'D': return 'DOUBLE'
+    if a == 'S': return 'STAND'
+    if a == 'R': return 'SURRENDER'
+    return 'HIT'
 
-    total    = best_total(player_cards)
-    soft     = has_soft_ace(player_cards)
-    nc       = len(player_cards)
-    can_split= nc == 2 and player_cards[0] == player_cards[1]
-
-    state = HandState(
-        total       = total,
-        is_soft     = soft,
-        can_double  = nc == 2,
-        can_split   = can_split,
-        can_surrender = nc == 2,
-    )
-    action = get_action(state, d1)
-
-    sub = f'Your total: {"soft " if soft else ""}{total}  |  Dealer: {dealer1_raw.upper()}'
-    return action.name, sub, can_split, soft, total
-
+STYLES = {
+    'HIT':       (GREEN,  '↑',  'HIT'),
+    'STAND':     (GOLD,   '—',  'STAND'),
+    'DOUBLE':    (CYAN,   '✦',  'DOUBLE DOWN'),
+    'SPLIT':     (PURPLE, '⟺', 'SPLIT'),
+    'SURRENDER': (RED,    '✕',  'SURRENDER'),
+}
 
 class App:
     def __init__(self):
@@ -86,132 +101,96 @@ class App:
         self.root.configure(bg=BG)
         self.root.attributes('-topmost', True)
         self.root.resizable(False, False)
-
         sw = self.root.winfo_screenwidth()
         sh = self.root.winfo_screenheight()
-        W, H = 480, 620
-        self.root.geometry(f'{W}x{H}+{sw//2 - W//2}+{sh//2 - H//2}')
-
+        W, H = 500, 560
+        self.root.geometry(f'{W}x{H}+{sw//2-W//2}+{sh//2-H//2}')
+        self._vars = {}
         self._build()
-        self._update()
-
-    # ── UI ─────────────────────────────────────────────────────────────────────
 
     def _build(self):
-        root = self.root
+        r = self.root
+        tk.Label(r, text='BLACKJACK ADVISOR', bg=BG,
+                 fg=GOLD, font=('Courier', 20, 'bold')).pack(pady=(22,2))
+        tk.Label(r, text='answer updates as you type',
+                 bg=BG, fg=DIM, font=('Courier', 10)).pack(pady=(0,16))
 
-        # Title
-        tk.Label(root, text='BLACKJACK ADVISOR', bg=BG,
-                 fg=GOLD, font=('Courier', 18, 'bold')).pack(pady=(24, 4))
-        tk.Label(root, text='enter your situation below', bg=BG,
-                 fg=DIM, font=('Courier', 11)).pack(pady=(0, 20))
+        for lbl, key, hint in [
+            ('DEALER CARD',  'dealer',  'A  2–9  T  J  Q  K'),
+            ('YOUR CARD 1',  'p1',      'A  2–9  T  J  Q  K'),
+            ('YOUR CARD 2',  'p2',      'A  2–9  T  J  Q  K'),
+            ('BALANCE  $',   'balance', ''),
+            ('BET  $',       'bet',     ''),
+        ]:
+            self._row(r, lbl, key, hint)
 
-        # Input fields
-        self._vars = {}
-        fields = [
-            ('DEALER CARD 1',  'dealer1',  'upcard  (A 2–9 T J Q K)'),
-            ('DEALER CARD 2',  'dealer2',  'hole card  (optional)'),
-            ('YOUR CARDS',     'player',   'e.g.  A 7  or  8 8'),
-            ('BALANCE',        'balance',  '$'),
-            ('BET',            'bet',      '$'),
-        ]
-        for label, key, hint in fields:
-            self._build_field(root, label, key, hint)
+        tk.Frame(r, bg=BORDER, height=1).pack(fill='x', padx=28, pady=12)
 
-        # Divider
-        tk.Frame(root, bg=BORDER, height=1).pack(fill='x', padx=30, pady=16)
+        self.box = tk.Frame(r, bg=PANEL, highlightthickness=3,
+                             highlightbackground=BORDER)
+        self.box.pack(fill='x', padx=24)
 
-        # Action box
-        self.action_frame = tk.Frame(root, bg=PANEL,
-                                      highlightthickness=3,
-                                      highlightbackground=BORDER)
-        self.action_frame.pack(fill='x', padx=24, pady=0)
+        self.icon_lbl   = tk.Label(self.box, text='?',  bg=PANEL, fg=DIM, font=('Courier',56,'bold'))
+        self.action_lbl = tk.Label(self.box, text='WAITING', bg=PANEL, fg=DIM, font=('Courier',36,'bold'))
+        self.sub_lbl    = tk.Label(self.box, text='Enter dealer card + your 2 cards',
+                                    bg=PANEL, fg=DIM, font=('Courier',11), wraplength=450)
+        self.icon_lbl.pack(pady=(14,0))
+        self.action_lbl.pack()
+        self.sub_lbl.pack(pady=(4,18))
 
-        self.action_icon = tk.Label(self.action_frame, text='?', bg=PANEL,
-                                     fg=DIM, font=('Courier', 52, 'bold'))
-        self.action_icon.pack(pady=(16, 0))
-
-        self.action_lbl = tk.Label(self.action_frame, text='WAITING',
-                                    bg=PANEL, fg=DIM,
-                                    font=('Courier', 34, 'bold'))
-        self.action_lbl.pack(pady=(0, 6))
-
-        self.action_sub = tk.Label(self.action_frame, text='Fill in the fields above',
-                                    bg=PANEL, fg=DIM,
-                                    font=('Courier', 11), wraplength=420)
-        self.action_sub.pack(pady=(0, 18))
-
-    def _build_field(self, parent, label, key, hint):
-        row = tk.Frame(parent, bg=BG)
-        row.pack(fill='x', padx=30, pady=5)
-
-        tk.Label(row, text=label, bg=BG, fg=DIM,
-                 font=('Courier', 9, 'bold'), width=14, anchor='w').pack(side='left')
-
+    def _row(self, parent, label, key, hint):
+        f = tk.Frame(parent, bg=BG)
+        f.pack(fill='x', padx=30, pady=4)
+        tk.Label(f, text=label, bg=BG, fg=DIM,
+                 font=('Courier',10,'bold'), width=14, anchor='w').pack(side='left')
         v = tk.StringVar()
         v.trace_add('write', lambda *_: self._update())
         self._vars[key] = v
-
-        e = tk.Entry(row, textvariable=v, bg=FIELD, fg=WHITE,
-                     font=('Courier', 16, 'bold'),
-                     insertbackground=WHITE, relief='flat',
-                     highlightthickness=2, highlightbackground=BORDER,
-                     highlightcolor=GOLD, width=10)
-        e.pack(side='left', ipady=8, padx=(8, 8))
-
-        tk.Label(row, text=hint, bg=BG, fg=DIM,
-                 font=('Courier', 9)).pack(side='left')
-
-    # ── Logic ──────────────────────────────────────────────────────────────────
+        tk.Entry(f, textvariable=v, bg=FIELD, fg=WHITE,
+                 font=('Courier',18,'bold'), insertbackground=WHITE,
+                 relief='flat', highlightthickness=2,
+                 highlightbackground=BORDER, highlightcolor=GOLD,
+                 width=8).pack(side='left', ipady=7, padx=(8,8))
+        if hint:
+            tk.Label(f, text=hint, bg=BG, fg=DIM, font=('Courier',9)).pack(side='left')
 
     def _update(self, *_):
-        d1  = self._vars['dealer1'].get()
-        d2  = self._vars['dealer2'].get()
-        pl  = self._vars['player'].get()
-        bal = self._vars['balance'].get()
-        bet = self._vars['bet'].get()
+        d  = parse_card(self._vars['dealer'].get())
+        c1 = parse_card(self._vars['p1'].get())
+        c2 = parse_card(self._vars['p2'].get())
 
-        if not d1.strip() or not pl.strip():
-            self._show_waiting()
-            return
+        if None in (d, c1, c2):
+            self._waiting(); return
 
-        action, sub, can_split, soft, total = get_advice(d1, d2, pl)
+        action = get_action(c1, c2, d)
+        col, icon, text = STYLES[action]
+        cards = [c1, c2]
+        tot   = best_total(cards)
+        soft  = is_soft(cards)
 
-        if action is None:
-            self._show_waiting(sub)
-            return
-
-        col, icon, text = ACTION_STYLE.get(action, (WHITE, '?', action))
-
-        # Add balance/bet info to sub if present
-        extras = []
+        sub = f'Your hand: {"Soft " if soft else ""}{tot}   Dealer: {self._vars["dealer"].get().upper()}'
         try:
-            b = float(bal.replace('$','').replace(',','').strip())
-            extras.append(f'Balance: ${b:,.0f}')
+            b = float(self._vars['balance'].get().replace('$','').replace(',',''))
+            sub += f'   Balance: ${b:,.0f}'
         except: pass
         try:
-            bt = float(bet.replace('$','').replace(',','').strip())
-            extras.append(f'Bet: ${bt:,.0f}')
+            bt = float(self._vars['bet'].get().replace('$','').replace(',',''))
+            sub += f'   Bet: ${bt:,.0f}'
         except: pass
 
-        full_sub = sub
-        if extras:
-            full_sub += '  |  ' + '  '.join(extras)
-
-        self.action_frame.config(highlightbackground=col)
-        self.action_icon.config(text=icon, fg=col)
+        self.box.config(highlightbackground=col)
+        self.icon_lbl.config(text=icon, fg=col)
         self.action_lbl.config(text=text, fg=col)
-        self.action_sub.config(text=full_sub, fg=col)
+        self.sub_lbl.config(text=sub, fg=col)
 
-    def _show_waiting(self, msg='Fill in the fields above'):
-        self.action_frame.config(highlightbackground=BORDER)
-        self.action_icon.config(text='?', fg=DIM)
+    def _waiting(self):
+        self.box.config(highlightbackground=BORDER)
+        self.icon_lbl.config(text='?', fg=DIM)
         self.action_lbl.config(text='WAITING', fg=DIM)
-        self.action_sub.config(text=msg, fg=DIM)
+        self.sub_lbl.config(text='Enter dealer card + your 2 cards', fg=DIM)
 
     def run(self):
         self.root.mainloop()
-
 
 if __name__ == '__main__':
     App().run()
