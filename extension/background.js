@@ -1,3 +1,28 @@
+// Key management messages
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'GET_KEY') {
+    chrome.storage.local.get('apiKey', (res) => {
+      if (chrome.runtime.lastError) {
+        sendResponse({ error: chrome.runtime.lastError.message });
+      } else {
+        sendResponse({ apiKey: res.apiKey || null });
+      }
+    });
+    return true;
+  }
+  if (msg.type === 'SET_KEY') {
+    chrome.storage.local.set({ apiKey: msg.key }, () => {
+      if (chrome.runtime.lastError) {
+        sendResponse({ ok: false, error: chrome.runtime.lastError.message });
+      } else {
+        sendResponse({ ok: true });
+      }
+    });
+    return true;
+  }
+});
+
+
 // background.js — captures screen, calls Claude Vision, returns advice
 
 const CARD_MAP = {'A':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'T':10,'J':10,'Q':10,'K':10};
