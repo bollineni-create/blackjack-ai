@@ -39,7 +39,7 @@
 <label>ANTHROPIC API KEY</label>
 <input type="text" id="apiKey" placeholder="sk-ant-api03-...">
 <button id="saveBtn">SAVE KEY</button>
-<div id="status">Loading...</div>
+<div id="status" style="color:#55556a;">—</div>
 <div class="note">
   Get key: <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a><br>
   Stored locally in Chrome only.<br>
@@ -55,19 +55,21 @@
     status.style.color = color || '#eeeeff';
   }
 
-  // Load existing key via message to background
-  chrome.runtime.sendMessage({ type: 'GET_KEY' }, (res) => {
-    if (chrome.runtime.lastError) {
-      show('BG error: ' + chrome.runtime.lastError.message, '#ff2d55');
-      return;
-    }
-    if (res && res.apiKey) {
-      keyEl.value = res.apiKey;
-      show('✓ Key loaded: ' + res.apiKey.slice(0,14) + '...', '#00e87a');
-    } else {
-      show('No key saved yet. Paste your key above.', '#55556a');
-    }
-  });
+  // Direct storage read — no background dependency
+  try {
+    chrome.storage.local.get('apiKey', (res) => {
+      if (chrome.runtime.lastError) {
+        show('Read error: ' + chrome.runtime.lastError.message, '#ff2d55');
+      } else if (res && res.apiKey) {
+        keyEl.value = res.apiKey;
+        show('✓ Key saved: ' + res.apiKey.slice(0,16) + '...', '#00e87a');
+      } else {
+        show('Paste your API key above and click Save.', '#55556a');
+      }
+    });
+  } catch(e) {
+    show('Storage unavailable: ' + e.message, '#ff2d55');
+  }
 
   document.getElementById('saveBtn').addEventListener('click', () => {
     const key = keyEl.value.trim();
@@ -76,17 +78,24 @@
       return;
     }
     show('Saving...', '#f5c842');
-    chrome.runtime.sendMessage({ type: 'SET_KEY', key }, (res) => {
-      if (chrome.runtime.lastError) {
-        show('Error: ' + chrome.runtime.lastError.message, '#ff2d55');
-        return;
-      }
-      if (res && res.ok) {
-        show('✓ SAVED! Key: ' + key.slice(0,14) + '...\nNow go to Bovada → click AUTO.', '#00e87a');
-      } else {
-        show('✗ Save failed: ' + JSON.stringify(res), '#ff2d55');
-      }
-    });
+    try {
+      chrome.storage.local.set({ apiKey: key }, () => {
+        if (chrome.runtime.lastError) {
+          show('Save error: ' + chrome.runtime.lastError.message, '#ff2d55');
+        } else {
+          // Read it back to confirm
+          chrome.storage.local.get('apiKey', (verify) => {
+            if (verify && verify.apiKey === key) {
+              show('✓ SAVED! Go to Bovada and click AUTO.', '#00e87a');
+            } else {
+              show('Saved but verify failed — try reloading extension.', '#ff8800');
+            }
+          });
+        }
+      });
+    } catch(e) {
+      show('Exception: ' + e.message, '#ff2d55');
+    }
   });
 </script>
 </body>
