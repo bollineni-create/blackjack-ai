@@ -4,81 +4,98 @@
 <meta charset="UTF-8">
 <style>
   body {
-    width: 280px;
-    padding: 16px;
+    width: 300px; padding: 18px; margin: 0;
     background: #0a0a0f;
     font-family: 'Courier New', monospace;
     color: #eeeeff;
-    margin: 0;
   }
   h2 { font-size: 14px; letter-spacing: 3px; color: #f5c842; margin-bottom: 14px; }
   label { font-size: 9px; color: #55556a; letter-spacing: 2px; display: block; margin-bottom: 6px; }
   input {
     width: 100%; background: #1a1a26; border: 1px solid #2a2a45; border-radius: 6px;
     color: #eeeeff; font-family: 'Courier New', monospace; font-size: 11px;
-    padding: 8px 10px; outline: none; box-sizing: border-box;
+    padding: 8px 10px; outline: none; box-sizing: border-box; margin-bottom: 8px;
   }
   input:focus { border-color: #f5c842; }
   button {
-    margin-top: 10px; width: 100%; background: #f5c842; color: #000;
-    border: none; border-radius: 6px; font-family: 'Courier New', monospace;
-    font-size: 12px; letter-spacing: 2px; font-weight: bold;
-    padding: 10px; cursor: pointer;
+    width: 100%; background: #f5c842; color: #000; border: none; border-radius: 6px;
+    font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: 2px;
+    font-weight: bold; padding: 11px; cursor: pointer; display: block;
   }
   button:hover { opacity: 0.85; }
-  #status { font-size: 10px; margin-top: 8px; letter-spacing: 1px; min-height: 16px; padding: 4px 0; }
-  .note { font-size: 9px; color: #3a3a55; margin-top: 10px; line-height: 1.7; letter-spacing: 1px; }
+  #status {
+    font-size: 11px; margin-top: 10px; padding: 8px 10px;
+    border-radius: 6px; min-height: 36px; line-height: 1.5;
+    background: #13131c; border: 1px solid #2a2a45;
+    word-break: break-all;
+  }
+  .note { font-size: 9px; color: #3a3a55; margin-top: 10px; line-height: 1.7; }
   a { color: #f5c842; }
 </style>
 </head>
 <body>
 <h2>♠ BJ ADVISOR</h2>
 <label>ANTHROPIC API KEY</label>
-<input type="password" id="apiKey" placeholder="sk-ant-api03-...">
+<input type="text" id="apiKey" placeholder="sk-ant-api03-...">
 <button id="saveBtn">SAVE KEY</button>
-<div id="status"></div>
+<div id="status" style="color:#55556a;">loading...</div>
 <div class="note">
-  Get a key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a><br>
-  Key stored locally in browser only.<br><br>
-  On Bovada live dealer: drag the HUD,<br>
-  click AUTO to scan every 2 seconds.
+  Get key: <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a><br>
+  Stored locally in Chrome only.
 </div>
+
 <script>
-  const input  = document.getElementById('apiKey');
+  const keyEl  = document.getElementById('apiKey');
   const status = document.getElementById('status');
 
-  // Load existing key on open
-  chrome.storage.local.get(['apiKey'], (result) => {
-    if (chrome.runtime.lastError) {
-      status.style.color = '#ff2d55';
-      status.textContent = 'Storage error: ' + chrome.runtime.lastError.message;
-      return;
-    }
-    if (result.apiKey) {
-      input.value = result.apiKey;
-      status.style.color = '#00e87a';
-      status.textContent = '✓ KEY LOADED';
-    }
-  });
+  function setStatus(msg, color) {
+    status.textContent = msg;
+    status.style.color = color || '#eeeeff';
+  }
 
-  document.getElementById('saveBtn').addEventListener('click', () => {
-    const key = input.value.trim();
-    if (!key || key.length < 10) {
-      status.style.color = '#ff2d55';
-      status.textContent = '✗ KEY TOO SHORT';
-      return;
-    }
-    status.style.color = '#f5c842';
-    status.textContent = 'SAVING...';
-    chrome.storage.local.set({ apiKey: key }, () => {
+  // Try to load saved key
+  try {
+    chrome.storage.local.get('apiKey', (res) => {
       if (chrome.runtime.lastError) {
-        status.style.color = '#ff2d55';
-        status.textContent = '✗ ' + chrome.runtime.lastError.message;
+        setStatus('Load error: ' + chrome.runtime.lastError.message, '#ff2d55');
+        return;
+      }
+      if (res && res.apiKey) {
+        keyEl.value = res.apiKey;
+        setStatus('✓ Key found (' + res.apiKey.slice(0,12) + '...)', '#00e87a');
       } else {
-        status.style.color = '#00e87a';
-        status.textContent = '✓ KEY SAVED — GO TO BOVADA';
+        setStatus('No key saved yet.', '#55556a');
       }
     });
+  } catch(e) {
+    setStatus('chrome.storage unavailable: ' + e.message, '#ff2d55');
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', () => {
+    const key = keyEl.value.trim();
+    if (!key || key.length < 8) {
+      setStatus('✗ Key is too short.', '#ff2d55');
+      return;
+    }
+    setStatus('Saving...', '#f5c842');
+    try {
+      chrome.storage.local.set({ apiKey: key }, () => {
+        if (chrome.runtime.lastError) {
+          setStatus('✗ Save error: ' + chrome.runtime.lastError.message, '#ff2d55');
+        } else {
+          // Verify it actually saved
+          chrome.storage.local.get('apiKey', (res) => {
+            if (res && res.apiKey === key) {
+              setStatus('✓ SAVED: ' + key.slice(0,12) + '...\nGo to Bovada — AUTO will appear.', '#00e87a');
+            } else {
+              setStatus('✗ Verify failed — key did not persist.', '#ff2d55');
+            }
+          });
+        }
+      });
+    } catch(e) {
+      setStatus('✗ Exception: ' + e.message, '#ff2d55');
+    }
   });
 </script>
 </body>
