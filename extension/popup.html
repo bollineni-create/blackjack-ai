@@ -3,35 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    width: 300px; padding: 18px;
-    background: #0a0a0f;
-    font-family: 'Courier New', monospace;
-    color: #eeeeff;
-  }
-  h2 { font-size: 13px; letter-spacing: 3px; color: #f5c842; margin-bottom: 16px; }
-  label { font-size: 9px; color: #55556a; letter-spacing: 2px; display: block; margin-bottom: 6px; }
-  input {
-    width: 100%; background: #1a1a26; border: 1px solid #2a2a45; border-radius: 6px;
-    color: #eeeeff; font-family: 'Courier New', monospace; font-size: 11px;
-    padding: 9px 10px; outline: none; margin-bottom: 10px;
-  }
-  input:focus { border-color: #f5c842; }
-  button {
-    width: 100%; background: #f5c842; color: #000; border: none; border-radius: 6px;
-    font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: 2px;
-    font-weight: bold; padding: 11px; cursor: pointer;
-  }
-  button:hover { opacity: 0.85; }
-  #status {
-    font-size: 11px; margin-top: 12px; padding: 10px;
-    border-radius: 6px; background: #13131c; border: 1px solid #2a2a45;
-    min-height: 40px; line-height: 1.6; word-break: break-all;
-    color: #55556a;
-  }
-  .note { font-size: 9px; color: #2a2a45; margin-top: 12px; line-height: 1.8; }
-  a { color: #f5c842; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 300px; padding: 18px; background: #0a0a0f; font-family: 'Courier New', monospace; color: #eeeeff; }
+h2 { font-size: 13px; letter-spacing: 3px; color: #f5c842; margin-bottom: 16px; }
+label { font-size: 9px; color: #55556a; letter-spacing: 2px; display: block; margin-bottom: 6px; }
+input { width: 100%; background: #1a1a26; border: 1px solid #2a2a45; border-radius: 6px; color: #eeeeff; font-family: 'Courier New', monospace; font-size: 11px; padding: 9px 10px; outline: none; margin-bottom: 10px; }
+input:focus { border-color: #f5c842; }
+button { width: 100%; background: #f5c842; color: #000; border: none; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: 2px; font-weight: bold; padding: 11px; cursor: pointer; }
+button:hover { opacity: 0.85; }
+#status { font-size: 11px; margin-top: 12px; padding: 10px; border-radius: 6px; background: #13131c; border: 1px solid #2a2a45; min-height: 40px; line-height: 1.6; word-break: break-all; color: #55556a; }
+.note { font-size: 9px; color: #2a2a45; margin-top: 12px; line-height: 1.8; }
+a { color: #f5c842; }
 </style>
 </head>
 <body>
@@ -39,64 +21,12 @@
 <label>ANTHROPIC API KEY</label>
 <input type="text" id="apiKey" placeholder="sk-ant-api03-...">
 <button id="saveBtn">SAVE KEY</button>
-<div id="status" style="color:#55556a;">—</div>
+<div id="status" style="color:#55556a;">Loading...</div>
 <div class="note">
   Get key: <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a><br>
   Stored locally in Chrome only.<br>
   On Bovada: click AUTO to scan every 2s.
 </div>
-
-<script>
-  const keyEl  = document.getElementById('apiKey');
-  const status = document.getElementById('status');
-
-  function show(msg, color) {
-    status.textContent = msg;
-    status.style.color = color || '#eeeeff';
-  }
-
-  // Direct storage read — no background dependency
-  try {
-    chrome.storage.local.get('apiKey', (res) => {
-      if (chrome.runtime.lastError) {
-        show('Read error: ' + chrome.runtime.lastError.message, '#ff2d55');
-      } else if (res && res.apiKey) {
-        keyEl.value = res.apiKey;
-        show('✓ Key saved: ' + res.apiKey.slice(0,16) + '...', '#00e87a');
-      } else {
-        show('Paste your API key above and click Save.', '#55556a');
-      }
-    });
-  } catch(e) {
-    show('Storage unavailable: ' + e.message, '#ff2d55');
-  }
-
-  document.getElementById('saveBtn').addEventListener('click', () => {
-    const key = keyEl.value.trim();
-    if (!key || key.length < 8) {
-      show('Key is too short!', '#ff2d55');
-      return;
-    }
-    show('Saving...', '#f5c842');
-    try {
-      chrome.storage.local.set({ apiKey: key }, () => {
-        if (chrome.runtime.lastError) {
-          show('Save error: ' + chrome.runtime.lastError.message, '#ff2d55');
-        } else {
-          // Read it back to confirm
-          chrome.storage.local.get('apiKey', (verify) => {
-            if (verify && verify.apiKey === key) {
-              show('✓ SAVED! Go to Bovada and click AUTO.', '#00e87a');
-            } else {
-              show('Saved but verify failed — try reloading extension.', '#ff8800');
-            }
-          });
-        }
-      });
-    } catch(e) {
-      show('Exception: ' + e.message, '#ff2d55');
-    }
-  });
-</script>
+<script src="popup.js"></script>
 </body>
 </html>
