@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key><string>BJ Advisor</string>
+  <key>CFBundleExecutable</key><string>BJ Advisor</string>
+  <key>CFBundleIdentifier</key><string>com.bj.advisor</string>
+  <key>CFBundleVersion</key><string>1.0</string>
+  <key>LSUIElement</key><false/>
+  <key>NSScreenCaptureUsageDescription</key><string>BJ Advisor needs screen access to read your Bovada table.</string>
+</dict>
+</plist>

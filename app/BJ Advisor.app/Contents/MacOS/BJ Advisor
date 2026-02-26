@@ -1,0 +1,3 @@
+#!/bin/bash
+DIR="$(cd "$(dirname "$0")/../../../.." && pwd)"
+/opt/homebrew/bin/python3.11 "$DIR/advisor.py"
